@@ -5,7 +5,7 @@ import io
 import time
 from PIL import Image
 
-# 1. API Setup (Secrets se)
+# 1. API Setup
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=API_KEY)
@@ -20,65 +20,66 @@ st.markdown("<style>.stApp { background-color: #000; color: #deff9a; font-family
 
 st.title("🤖 RAJ-AI: SENTINEL (Colab Combined)")
 
-if 'interview' not in st.session_state:
-    st.session_state.interview = False
-
-# File Upload
-file = st.file_uploader("Upload Document (PDF/Image)", type=['pdf', 'jpg', 'png'])
+file = st.file_uploader("Upload Resume (PDF/Image)", type=['pdf', 'jpg', 'png'])
 
 if file:
     text = ""
-    with st.spinner("Agent is reading..."):
+    with st.spinner("AI is reading your document..."):
         try:
             if file.type == "application/pdf":
-                reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+                # Normal Text Extraction
+                pdf_data = file.read()
+                reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
                 text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
-                # Agar normal text na mile toh as image treat karein
+                
+                # AGENTIC FIX: Agar text blank hai (Scanned PDF), toh Vision use karo
                 if not text.strip():
-                    st.warning("Scanned PDF detected. AI Vision is scanning...")
-                    # Simpler vision prompt to avoid 'NotFound' error
-                    file.seek(0)
-                    text = "Scanned Content: AI is analyzing the visual data." 
+                    st.warning("⚠️ Scanned PDF detected. AI Vision is scanning...")
+                    # Direct PDF bytes to Gemini
+                    response = model.generate_content([
+                        "Is resume PDF ko dhyan se padho aur iska poora text extract karo:",
+                        {"mime_type": "application/pdf", "data": pdf_data}
+                    ])
+                    text = response.text
             else:
+                # Image processing
                 img = Image.open(file)
-                res = model.generate_content(["Read this image resume:", img])
+                res = model.generate_content(["Is resume image ko analyze karo aur text nikalo:", img])
                 text = res.text
 
-            if text:
+            if text.strip():
                 st.sidebar.success("Agent Active 🟢")
                 
-                # --- AUTO ANALYSIS (COLAB FEATURE) ---
-                with st.expander("📊 Autonomous Analysis & ATS Score", expanded=True):
-                    analysis = model.generate_content(f"Strictly analyze this resume and give ATS score: {text[:2000]}")
-                    st.write(analysis.text)
-
+                # --- PHASE 2: AUTOMATIC DECISIONS ---
+                st.markdown("### 🧠 Agentic Intelligence Report")
+                # Powerful prompt like your Colab
+                prompt = f"""
+                Tu ek Autonomous Career Agent hai. Is resume data ko analyze kar: {text[:3500]}
+                Hinglish mein ye 4 kaam kar:
+                1. Resume ki 2 galtiyan aur unhe theek karne ka tarika.
+                2. Strict ATS Score (out of 100).
+                3. Best Job Role jo is bande ko suit kare.
+                4. Is role ke liye 10 tough interview questions.
+                """
+                response = model.generate_content(prompt)
+                st.info(response.text)
+                
+                # --- AUTOMATION TOOLS ---
                 st.divider()
-                # --- AUTOMATION BUTTONS ---
-                c1, c2, c3 = st.columns(3)
+                c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("🚀 Auto-Apply Search"):
-                        st.write("Searching Jobs for your profile...")
-                        jobs = model.generate_content(f"Give 2 LinkedIn job search links for this profile: {text[:500]}")
-                        st.markdown(jobs.text)
-                
+                    if st.button("🚀 Search Jobs & Apply"):
+                        st.write("Finding matches on LinkedIn & Naukri...")
+                        links = model.generate_content(f"Give LinkedIn job search links for: {text[:500]}")
+                        st.markdown(links.text)
                 with c2:
-                    if st.button("📧 Generate Email Draft"):
-                        email = model.generate_content(f"Write a professional job application email for this resume.")
+                    if st.button("📧 Draft Application Email"):
+                        email = model.generate_content(f"Write a professional email for this resume.")
                         st.code(email.text)
-                
-                with c3:
-                    if st.button("🎤 Start Interview"):
-                        st.session_state.interview = True
+            else:
+                st.error("Dost, ye file read nahi ho pa rahi. Dusri try karo.")
 
-                if st.session_state.interview:
-                    st.markdown("---")
-                    st.subheader("Agentic Interviewer")
-                    st.info("Q1: Aapne jo skills mention ki hain, unka real-world impact kya raha hai?")
-                    ans = st.text_input("Aapka Answer yahan likhein:")
-                    if ans:
-                        st.success("Agent Feedback: Sahi reasoning hai! Agle sawal ke liye taiyar rahein.")
-        
         except Exception as e:
             st.error(f"System Error: {e}")
 
-st.caption("Agentic v7.0 | Full Colab Core Integrated")
+st.caption("Agentic v8.0 | Full Automation Core Integrated")
