@@ -8,7 +8,7 @@ from PIL import Image
 # 1. API Config
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash') # Updated to 1.5 for better vision
+model = genai.GenerativeModel('gemini-2.5-flash') # Updated to 1.5 for better vision
 
 # 2. UI Styling
 st.set_page_config(page_title="Raj-AI Universal Agent", layout="wide")
