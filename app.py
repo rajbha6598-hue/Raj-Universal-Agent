@@ -16,7 +16,7 @@ st.sidebar.title("🔐 Agent Config")
 user_key = st.sidebar.text_input("Gemini API Key", type="password")
 if user_key:
     genai.configure(api_key=user_key)
-    model = genai.GenerativeModel('gemini-1.5-flash') # Hyper-fast model
+    model = genai.GenerativeModel('gemini-2.5-flash') # Hyper-fast model
     st.sidebar.success("Brain Connected 🟢")
 
 # --- 2. LOGIN ---
