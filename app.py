@@ -3,78 +3,83 @@ import google.generativeai as genai
 import pandas as pd
 import PyPDF2
 import io
+import time
 from PIL import Image
 
-# --- 1. UI THEME ---
+# --- 1. THEME & BRAIN CONFIG (2.5 FLASH) ---
 st.set_page_config(page_title="Universal Agent 2026", layout="wide")
 st.markdown("<style>.stApp { background-color: #000; color: #deff9a; font-family: monospace; } .card { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #deff9a; }</style>", unsafe_allow_html=True)
 
 if 'auth' not in st.session_state: st.session_state.auth = False
 
-# Sidebar
+# Sidebar Key Handling
 st.sidebar.title("🔐 Agent Config")
-user_key = st.sidebar.text_input("Gemini API Key", type="password")
-if user_key:
-    genai.configure(api_key=user_key)
-    model = genai.GenerativeModel('gemini-2.5-flash') # Hyper-fast model
-    st.sidebar.success("Brain Connected 🟢")
+user_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
 
-# --- 2. LOGIN ---
+if user_key:
+    try:
+        genai.configure(api_key=user_key)
+        # UPDATED: Using the same model that worked in your Colab
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        st.sidebar.success("Brain Connected (v2.5) 🟢")
+    except:
+        st.sidebar.error("Invalid API Key!")
+
+# --- 2. LOGIN GATE ---
 if not st.session_state.auth:
     st.title("🤖 RAJ-AI SENTINEL")
     with st.columns([1,2,1])[1]:
         u = st.text_input("Agent ID")
         p = st.text_input("Vault Key", type="password")
-        if st.button("Access System"):
+        if st.button("Access Dashboard"):
             if u == "admin" and p == "2026":
                 st.session_state.auth = True
                 st.rerun()
             else: st.error("Access Denied!")
 else:
-    # --- 3. DASHBOARD ---
+    # --- 3. UNIVERSAL DASHBOARD ---
     st.title("🌐 UNIVERSAL COMMAND CENTER")
-    file = st.file_uploader("Upload: PDF, Excel, or Image", type=['pdf', 'xlsx', 'csv', 'png', 'jpg'])
+    
+    if not user_key:
+        st.warning("👈 Bhai, Sidebar mein Nayi API Key dalo pehle!")
+    else:
+        file = st.file_uploader("Upload Document (PDF, Image, Excel)", type=['pdf', 'xlsx', 'csv', 'png', 'jpg'])
 
-    if file and user_key:
-        file_ext = file.name.split('.')[-1].lower()
-        
-        with st.status("🚀 Agentic Processing...") as status:
+        if file:
+            file_ext = file.name.split('.')[-1].lower()
             file_bytes = file.read()
             
-            # --- CASE A: EXCEL (Ultra Fast) ---
-            if file_ext in ['xlsx', 'csv']:
-                df = pd.read_excel(file) if file_ext != 'csv' else pd.read_csv(file)
-                st.dataframe(df.head(5))
-                prompt = f"Tu Data Analyst hai. Is data ke 3 trends bata Hinglish mein: {df.describe().to_string()}"
-                response = model.generate_content(prompt)
-                st.markdown(f"<div class='card'>{response.text}</div>", unsafe_allow_html=True)
-
-            # --- CASE B: PDF & IMAGE (Single-Shot Vision) ---
-            else:
-                # Prompt jo AI ko seedha report dene ko kahega
-                analysis_prompt = "Tu ek Universal Expert Agent hai. Is resume/doc ko scan kar aur seedha ye report de (Hinglish): 1. ATS Score, 2. Top 3 Skills, 3. 10 Interview Questions. Short and crisp rakho."
-                
+            # --- AGENTIC PROCESSING ---
+            with st.spinner("AI Brain is Scanning... (Scanned PDF may take 20s)"):
                 try:
-                    if file_ext == 'pdf':
-                        # Pehle text nikalne ki koshish (If not scanned, it's instant)
-                        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-                        text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
-                        
-                        if text.strip():
-                            st.write("📄 Text Mode: Processing instantly...")
-                            response = model.generate_content([analysis_prompt, text])
-                        else:
-                            st.write("🔍 Vision Mode: Scanning Scanned PDF (Wait 10-15s)...")
-                            response = model.generate_content([analysis_prompt, {"mime_type": "application/pdf", "data": file_bytes}])
-                    else:
-                        st.write("🖼️ Image Mode: Analyzing...")
-                        img = Image.open(io.BytesIO(file_bytes))
-                        response = model.generate_content([analysis_prompt, img])
+                    # Logic for Excel
+                    if file_ext in ['xlsx', 'csv']:
+                        df = pd.read_excel(file) if file_ext != 'csv' else pd.read_csv(file)
+                        st.dataframe(df.head(5))
+                        res = model.generate_content(f"Analyze this data trends: {df.describe().to_string()}")
+                        st.markdown(f"<div class='card'>{res.text}</div>", unsafe_allow_html=True)
 
-                    status.update(label="Analysis Ready ✅", state="complete")
-                    st.markdown(f"<div class='card'>{response.text}</div>", unsafe_allow_html=True)
-                
+                    # Logic for PDF/Images (Single Call Optimization)
+                    else:
+                        analysis_prompt = "Tu ek Universal Career Agent hai. Is document ko deeply scan kar aur Hinglish mein bata: 1. ATS Score (0-100), 2. Top 3 Skills, 3. 10 Interview Questions. Short and clear answer do."
+                        
+                        if file_ext == 'pdf':
+                            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+                            text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                            
+                            if text.strip():
+                                response = model.generate_content([analysis_prompt, text])
+                            else:
+                                # OCR for Scanned PDF
+                                response = model.generate_content([analysis_prompt, {"mime_type": "application/pdf", "data": file_bytes}])
+                        else:
+                            img = Image.open(io.BytesIO(file_bytes))
+                            response = model.generate_content([analysis_prompt, img])
+
+                        st.success("Scanning Complete! ✅")
+                        st.markdown(f"<div class='card'>{response.text}</div>", unsafe_allow_html=True)
+                        
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-st.caption("Raj-AI v16.0 | Single-Shot Logic | 2026")
+st.caption("Raj-AI v17.0 | 2.5-Flash Core | 2026")
