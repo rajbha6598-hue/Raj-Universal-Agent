@@ -27,7 +27,11 @@ file = st.file_uploader("Upload Resume (PDF)", type=['pdf'])
 if file:
     # PDF Reading
     pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
-    text = "".join([page.extract_text() for page in pdf_reader.pages])
+    text = ""
+    for page in pdf_reader.pages:
+    content = page.extract_text()
+    if content:
+        text += content
     
     st.success("✅ Resume mil gaya!")
     
