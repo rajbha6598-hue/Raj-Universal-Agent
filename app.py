@@ -3,33 +3,38 @@ import google.generativeai as genai
 import PyPDF2
 import io
 import time
-from PIL import Image
 
-# 1. BRAIN CONFIGURATION (Colab Verified)
-try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    # Using the exact same 2.5 Flash model from your Colab
-    model = genai.GenerativeModel('gemini-2.5-flash')
-except Exception as e:
-    st.error(f"🚨 API Key Connection Failed: {e}")
-    st.stop()
-
-# 2. AGENTIC UI THEME
-st.set_page_config(page_title="Raj-AI: Full Sentinel", layout="wide")
+# --- 1. AGENTIC UI THEME ---
+st.set_page_config(page_title="Universal Agent 2026", layout="wide")
 st.markdown("""
     <style>
-    .stApp { background-color: #000; color: #deff9a; font-family: 'Courier New', monospace; }
-    .stButton>button { background: #deff9a !important; color: #000 !important; font-weight: bold; border-radius: 10px; }
+    .stApp { background-color: #000; color: #deff9a; font-family: monospace; }
     .card { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #deff9a; margin-bottom: 20px; }
+    .stButton>button { background: #deff9a !important; color: #000 !important; font-weight: bold; border-radius: 50px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. SESSION MANAGEMENT (Strict Auth)
+# --- 2. SIDEBAR: API KEY MANAGEMENT ---
+st.sidebar.title("🔐 Agent Configuration")
+user_key = st.sidebar.text_input("Enter your Gemini API Key", type="password", help="Get it free from Google AI Studio")
+
+if not user_key:
+    st.sidebar.warning("⚠️ System Offline: API Key Required")
+    st.sidebar.markdown(f"[Get Free API Key here](https://aistudio.google.com/app/apikey)")
+else:
+    try:
+        genai.configure(api_key=user_key)
+        # Using the latest 2.5-flash from your Colab experiments
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        st.sidebar.success("System Online 🟢")
+    except:
+        st.sidebar.error("Invalid API Key!")
+
+# --- 3. AUTHENTICATION (Optional but kept for your admin control) ---
 if 'auth' not in st.session_state: st.session_state.auth = False
 
 if not st.session_state.auth:
-    st.title("🤖 RAJ-AI SENTINEL: SECURE LOGIN")
+    st.title("🤖 RAJ-AI SENTINEL: UNIVERSAL ACCESS")
     with st.columns([1,2,1])[1]:
         u = st.text_input("Agent ID")
         p = st.text_input("Vault Key", type="password")
@@ -39,79 +44,42 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied.")
 else:
-    # --- FULL-FLEDGE AGENT DASHBOARD ---
-    st.sidebar.title("🧠 Agentic Logic Flow")
-    logs = st.sidebar.empty()
-    logs.info("System: Awaiting Document...")
-
-    if st.sidebar.button("Logout"):
-        st.session_state.auth = False
-        st.rerun()
-
-    st.title("🌐 UNIVERSAL AGENTIC COMMAND CENTER")
+    # --- 4. UNIVERSAL DASHBOARD ---
+    st.title("🌐 UNIVERSAL COMMAND CENTER")
     
-    file = st.file_uploader("Upload Resume (PDF/Image)", type=['pdf', 'png', 'jpg'])
-
-    if file:
-        logs.warning("System: Deep Scanning...")
-        text = ""
+    if not user_key:
+        st.error("Bhai, pehle Sidebar mein apni API Key dalo, tabhi Agent kaam karega!")
+    else:
+        file = st.file_uploader("Upload Resume (PDF)", type=['pdf'])
         
-        # COLAB CORE: Forensic Extraction
-        file_bytes = file.read()
-        if file.type == "application/pdf":
-            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-            text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
-            # Vision Fallback for Scanned PDF (Colab v8 Logic)
-            if not text.strip():
-                st.warning("Vision Core Active: Scanning Scanned PDF...")
-                res = model.generate_content(["Scan this document text:", {"mime_type": "application/pdf", "data": file_bytes}])
-                text = res.text
-        else:
-            img = Image.open(io.BytesIO(file_bytes))
-            res = model.generate_content(["Analyze this resume image:", img])
-            text = res.text
+        if file:
+            with st.status("Agentic Analysis in Progress...") as status:
+                # Text Extraction Logic
+                reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+                text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                
+                if text:
+                    status.update(label="Scanning Complete ✅", state="complete")
+                    
+                    st.markdown("<div class='card'>", unsafe_allow_html=True)
+                    st.subheader("🧐 AI Intelligence Report")
+                    
+                    # Colab Prompt Logic
+                    prompt = f"Tu ek Autonomous Career Agent hai. Is resume ko analyze kar aur ATS score, 2 galtiyan, aur 10 interview questions de: {text[:3000]}"
+                    try:
+                        response = model.generate_content(prompt)
+                        st.write(response.text)
+                    except Exception as e:
+                        st.error(f"AI Error: {e}")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # Automation Buttons
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("🚀 Job Search"):
+                            st.write(model.generate_content(f"LinkedIn links for: {text[:500]}").text)
+                    with c2:
+                        if st.button("📧 Email Draft"):
+                            st.code(model.generate_content(f"Draft application email for this resume").text)
 
-        if text:
-            logs.success("System: Data Parsed ✅")
-            
-            # --- PHASE 1: AUTONOMOUS ANALYSIS ---
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("📊 Forensic Resume Report")
-            analysis_prompt = f"""
-            Analyze this resume forensicly: {text[:3000]}
-            1. ATS Score (0-100).
-            2. Top 3 Critical Errors & Fixes.
-            3. Best Job Role (Decision).
-            4. 10 Expert Interview Questions for this role.
-            Respond in professional Hinglish.
-            """
-            with st.spinner("Agentic Reasoning in progress..."):
-                response = model.generate_content(analysis_prompt)
-                st.markdown(response.text)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            # --- PHASE 2: COLAB AUTOMATION TOOLS ---
-            st.divider()
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.subheader("🚀 Job Hunter")
-                if st.button("Find Best Matches"):
-                    with st.spinner("Scraping Portals..."):
-                        jobs = model.generate_content(f"Give 3 LinkedIn/Indeed search links for: {text[:500]}")
-                        st.write(jobs.text)
-            
-            with col2:
-                st.subheader("📧 Comms Hub")
-                if st.button("Generate Email Draft"):
-                    email = model.generate_content(f"Write a professional application email for this profile.")
-                    st.code(email.text)
-            
-            with col3:
-                st.subheader("🎤 Interview Lab")
-                if st.button("Start Mock Interview"):
-                    st.info("Agent: 'Aapne jo CRM experience likha hai, use sales growth ke saath kaise link karenge?'")
-                    ans = st.text_input("Aapka Jawab:")
-                    if ans: st.success("Feedback: Solid Point! Par metrics bhi add karein.")
-
-st.caption("Raj-AI v10.0 | Full-Fledge Agentic Core | 2026 Edition")
+st.caption("Universal Agent v13.0 | BYOK Edition | 2026")
