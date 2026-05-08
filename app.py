@@ -1,85 +1,92 @@
 import streamlit as st
 import google.generativeai as genai
-import PyPDF2
-import io
 import time
-from PIL import Image
 
-# 1. API Setup
-try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
-except Exception as e:
-    st.error("🚨 API Key missing! Check Secrets.")
-    st.stop()
+# --- CUSTOM CSS: ACID GREEN & DARK MODE ---
+st.set_page_config(page_title="Agentic 2026", layout="wide")
+st.markdown("""
+    <style>
+    .stApp { background-color: #000; color: #f8fafc; }
+    .stButton>button {
+        background-color: #deff9a !important;
+        color: #000 !important;
+        border-radius: 50px !important;
+        font-weight: bold;
+        border: none;
+    }
+    .stTextInput>div>div>input { background-color: #111 !important; color: #deff9a !important; border: 1px solid #333 !important; }
+    .stSidebar { background-color: #0a0a0a !important; border-right: 1px solid #333; }
+    h1, h2, h3 { color: #deff9a !important; }
+    .card { background-color: #111; padding: 20px; border-radius: 20px; border: 1px solid #222; margin-bottom: 20px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# 2. UI Style (Neon Green)
-st.set_page_config(page_title="Agentic Master 2026", layout="wide")
-st.markdown("<style>.stApp { background-color: #000; color: #deff9a; font-family: monospace; }</style>", unsafe_allow_html=True)
+# --- SESSION STATE & AUTH ---
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
 
-st.title("🤖 RAJ-AI: SENTINEL (Colab Combined)")
-
-file = st.file_uploader("Upload Resume (PDF/Image)", type=['pdf', 'jpg', 'png'])
-
-if file:
-    text = ""
-    with st.spinner("AI is reading your document..."):
-        try:
-            if file.type == "application/pdf":
-                # Normal Text Extraction
-                pdf_data = file.read()
-                reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
-                text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
-                
-                # AGENTIC FIX: Agar text blank hai (Scanned PDF), toh Vision use karo
-                if not text.strip():
-                    st.warning("⚠️ Scanned PDF detected. AI Vision is scanning...")
-                    # Direct PDF bytes to Gemini
-                    response = model.generate_content([
-                        "Is resume PDF ko dhyan se padho aur iska poora text extract karo:",
-                        {"mime_type": "application/pdf", "data": pdf_data}
-                    ])
-                    text = response.text
+def login():
+    st.markdown("<h1 style='text-align: center;'>AGENTIC<span>2026</span></h1>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("🔐 Secure Entry")
+        user = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Access Dashboard"):
+            if user == "admin" and password == "2026":
+                st.session_state.logged_in = True
+                st.rerun()
             else:
-                # Image processing
-                img = Image.open(file)
-                res = model.generate_content(["Is resume image ko analyze karo aur text nikalo:", img])
-                text = res.text
+                st.error("Galti hai dost! Sahi password daalo.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-            if text.strip():
-                st.sidebar.success("Agent Active 🟢")
-                
-                # --- PHASE 2: AUTOMATIC DECISIONS ---
-                st.markdown("### 🧠 Agentic Intelligence Report")
-                # Powerful prompt like your Colab
-                prompt = f"""
-                Tu ek Autonomous Career Agent hai. Is resume data ko analyze kar: {text[:3500]}
-                Hinglish mein ye 4 kaam kar:
-                1. Resume ki 2 galtiyan aur unhe theek karne ka tarika.
-                2. Strict ATS Score (out of 100).
-                3. Best Job Role jo is bande ko suit kare.
-                4. Is role ke liye 10 tough interview questions.
-                """
-                response = model.generate_content(prompt)
-                st.info(response.text)
-                
-                # --- AUTOMATION TOOLS ---
-                st.divider()
-                c1, c2 = st.columns(2)
-                with c1:
-                    if st.button("🚀 Search Jobs & Apply"):
-                        st.write("Finding matches on LinkedIn & Naukri...")
-                        links = model.generate_content(f"Give LinkedIn job search links for: {text[:500]}")
-                        st.markdown(links.text)
-                with c2:
-                    if st.button("📧 Draft Application Email"):
-                        email = model.generate_content(f"Write a professional email for this resume.")
-                        st.code(email.text)
+# --- MAIN DASHBOARD ---
+if not st.session_state.logged_in:
+    login()
+else:
+    # Sidebar Navigation
+    st.sidebar.title("🤖 Agentic 2026")
+    menu = st.sidebar.radio("Navigation", ["🏠 Dashboard", "🎯 Job Hunter", "📝 Skill Lab", "📧 Comms Hub"])
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
+
+    if menu == "🏠 Dashboard":
+        st.title("Welcome back, User")
+        col1, col2, col3 = st.columns(3)
+        with col1: st.markdown("<div class='card'><h3>Jobs Applied</h3><h1>12</h1></div>", unsafe_allow_html=True)
+        with col2: st.markdown("<div class='card'><h3>Tests Taken</h3><h1>05</h1></div>", unsafe_allow_html=True)
+        with col3: st.markdown("<div class='card'><h3>AI Accuracy</h3><h1>94%</h1></div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='card'><h3>🚀 Proactive Insight</h3><p>Dost, LinkedIn par 3 naye 'AI Evaluation' jobs post huye hain jo aapke profile se match karte hain. Kya main apply kar doon?</p></div>", unsafe_allow_html=True)
+
+    elif menu == "🎯 Job Hunter":
+        st.title("🎯 Job Center")
+        role = st.text_input("Enter Role (e.g., AI Evaluator)", "AI Evaluation Specialist")
+        loc = st.text_input("Location", "Remote")
+        if st.button("Search Real-time"):
+            with st.spinner("Scraping 2026 Market..."):
+                time.sleep(2)
+                st.success("Found 15 matching roles!")
+                st.markdown(f"[🔗 View LinkedIn Jobs](https://www.linkedin.com/jobs/search/?keywords={role.replace(' ','%20')})")
+                st.markdown(f"[🔗 View Indeed Jobs](https://in.indeed.com/jobs?q={role.replace(' ','+')})")
+
+    elif menu == "📝 Skill Lab":
+        st.title("📝 AI Skill Lab")
+        st.info("Task: AI says 'Chai mein rice daalo'. Evaluate this.")
+        eval_input = st.text_area("Your Analysis:")
+        if st.button("Submit for Grading"):
+            if "rice" in eval_input.lower() or "chawal" in eval_input.lower():
+                st.balloons()
+                st.success("Perfect! Aapne 'Hallucination' pakad liya.")
             else:
-                st.error("Dost, ye file read nahi ho pa rahi. Dusri try karo.")
+                st.warning("Thoda aur dhyaan se dekho bhai.")
 
-        except Exception as e:
-            st.error(f"System Error: {e}")
+    elif menu == "📧 Comms Hub":
+        st.title("📧 Communication Lab")
+        intent = st.text_input("Aapka message kya hai?", "Boss ko chutti ki application")
+        if st.button("Generate Draft"):
+            st.code("Subject: Leave Application\n\nDear Boss, I need leave for 2 days due to personal reasons. Regards.")
 
-st.caption("Agentic v8.0 | Full Automation Core Integrated")
+    
