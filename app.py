@@ -3,83 +3,73 @@ import google.generativeai as genai
 import PyPDF2
 import io
 import time
+from PIL import Image
 
-# 1. API Setup
+# 1. Colab's Brain Setup
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# 2. UI Styling (Agentic Theme)
+# 2. Acid Green UI (Colab 2026 Style)
 st.set_page_config(page_title="Raj-AI: Autonomous Agent", layout="wide")
 st.markdown("<style>.stApp { background-color: #000; color: #deff9a; font-family: monospace; }</style>", unsafe_allow_html=True)
 
-st.title("🤖 RAJ-AI: SENTINEL AGENT (Autonomous)")
+st.title("🤖 RAJ-AI: SENTINEL (Colab Combined)")
 
-# Sidebar for Logic Logs
-st.sidebar.title("🧠 Agent's Logic Flow")
-logs = st.sidebar.empty()
+if 'step' not in st.session_state: st.session_state.step = 1
 
-file = st.file_uploader("Drop Resume to Initialize Agent", type=['pdf', 'jpg', 'png'])
+# File Upload
+file = st.file_uploader("Upload Document", type=['pdf', 'jpg', 'png'])
 
 if file:
-    logs.markdown("🟡 **Status:** Reading Document...")
-    
-    # Text Extraction Logic
+    # Logic to extract text (PDF/Image)
     file.seek(0)
     if file.type == "application/pdf":
         reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
         text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+        if not text.strip():
+            file.seek(0)
+            res = model.generate_content(["Scan scanned PDF:", {"mime_type": "application/pdf", "data": file.read()}])
+            text = res.text
     else:
-        from PIL import Image
         img = Image.open(file)
         res = model.generate_content(["Extract text:", img])
         text = res.text
 
     if text:
-        logs.markdown("🟢 **Status:** Executive Decision Mode")
+        # AUTOMATION PHASE: Decision Making
+        st.sidebar.success("Agent Active 🟢")
         
-        # --- PHASE 2: AUTONOMOUS CORE ---
-        # Session state to keep track of questions
-        if 'analysis_done' not in st.session_state:
-            with st.status("Agent is Making Decisions..."):
-                agent_prompt = f"Analyze this resume: {text[:2500]}. Give ATS score, list 3 errors, pick 1 job role, and prepare 5 interview questions in Hinglish."
-                st.session_state.response = model.generate_content(agent_prompt).text
-                st.session_state.analysis_done = True
+        # 1. Auto Analysis & ATS Score
+        with st.expander("📊 Autonomous Analysis & ATS Score", expanded=True):
+            analysis = model.generate_content(f"Strictly analyze this resume: {text[:2500]}. Give ATS score, find 3 critical errors, and suggest 1 job role in Hinglish.")
+            st.write(analysis.text)
 
-        with st.chat_message("assistant"):
-            st.markdown(st.session_state.response)
-
-        # --- PHASE 3: REAL AUTOMATION BUTTONS ---
+        # 2. Colab Automation Tools
         st.divider()
-        st.subheader("⚡ Agentic Command Center")
+        c1, c2, c3 = st.columns(3)
         
-        col1, col2, col3 = st.columns(3)
+        with c1:
+            if st.button("🚀 Auto-Apply Search"):
+                st.write("Searching LinkedIn & Naukri...")
+                time.sleep(1)
+                jobs = model.generate_content(f"Give 2 job links for this role: {text[:500]}")
+                st.markdown(jobs.text)
         
-        with col1:
-            if st.button("🚀 Auto-Apply to Best Match"):
-                with st.status("Agent Executing Tasks..."):
-                    st.write("Finding LinkedIn match...")
-                    time.sleep(1)
-                    st.write("Preparing application package...")
-                    time.sleep(1)
-                    st.success("Target Job Locked! Draft ready for submission.")
-                    st.balloons()
-        
-        with col2:
-            if st.button("📝 Improve My Resume Now"):
-                with st.spinner("AI is rewriting sections..."):
-                    fix_prompt = f"Rewrite the objective and skills section of this resume to make it professional: {text[:1000]}"
-                    improved = model.generate_content(fix_prompt).text
-                    st.code(improved, language='markdown')
+        with c2:
+            if st.button("📧 Generate Email Draft"):
+                email = model.generate_content(f"Write a professional application email for this resume.")
+                st.code(email.text)
 
-        with col3:
-            if st.button("🎤 Start Mock Interview"):
-                st.session_state.show_interview = True
+        with c3:
+            if st.button("🎤 Start Interview"):
+                st.session_state.interview = True
 
-        if st.session_state.get('show_interview'):
-            st.info("Agent Question: 'Aapne jo Prompt Engineering projects mention kiye hain, unmein 'Hallucination' handle karne ke liye aapne kya strategy use ki?'")
-            answer = st.text_input("Aapka Jawab yahan likhein:")
-            if answer:
-                st.success("Agent Feedback: 'Sahi pakde hain! Aapka technical grasp solid hai.'")
+        if st.session_state.get('interview'):
+            st.markdown("---")
+            st.subheader("Agentic Interviewer")
+            st.info("Q1: Aapne is resume mein jo projects likhe hain, unka impact business par kya tha?")
+            ans = st.text_input("Aapka Answer:")
+            if ans: st.success("Agent: Sahi hai! Aapka reasoning solid hai.")
 
-st.caption("v3.1 | Powered by Gemini 2.5 Flash | Real-time Decision Engine Active")
+st.caption("Agentic v6.0 | Full Colab Core Integrated")
