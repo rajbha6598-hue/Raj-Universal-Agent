@@ -5,8 +5,6 @@ import pandas as pd
 from docx import Document
 import io
 from PIL import Image
-import pdf2image # Ye extra library scanned PDF ke liye hai
-
 # 1. API Config
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
