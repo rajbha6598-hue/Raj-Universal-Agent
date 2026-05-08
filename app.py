@@ -4,37 +4,16 @@ import PyPDF2
 import io
 import time
 
-# --- 1. AGENTIC UI THEME ---
+# --- 1. CONFIG & STYLE ---
 st.set_page_config(page_title="Universal Agent 2026", layout="wide")
-st.markdown("""
-    <style>
-    .stApp { background-color: #000; color: #deff9a; font-family: monospace; }
-    .card { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #deff9a; margin-bottom: 20px; }
-    .stButton>button { background: #deff9a !important; color: #000 !important; font-weight: bold; border-radius: 50px; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("<style>.stApp { background-color: #000; color: #deff9a; font-family: monospace; } .card { background: #111; padding: 20px; border-radius: 15px; border: 1px solid #deff9a; margin-bottom: 20px; }</style>", unsafe_allow_html=True)
 
-# --- 2. SIDEBAR: API KEY MANAGEMENT ---
-st.sidebar.title("🔐 Agent Configuration")
-user_key = st.sidebar.text_input("Enter your Gemini API Key", type="password", help="Get it free from Google AI Studio")
-
-if not user_key:
-    st.sidebar.warning("⚠️ System Offline: API Key Required")
-    st.sidebar.markdown(f"[Get Free API Key here](https://aistudio.google.com/app/apikey)")
-else:
-    try:
-        genai.configure(api_key=user_key)
-        # Using the latest 2.5-flash from your Colab experiments
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        st.sidebar.success("System Online 🟢")
-    except:
-        st.sidebar.error("Invalid API Key!")
-
-# --- 3. AUTHENTICATION (Optional but kept for your admin control) ---
+# --- 2. API & AUTH ---
 if 'auth' not in st.session_state: st.session_state.auth = False
+user_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
 
 if not st.session_state.auth:
-    st.title("🤖 RAJ-AI SENTINEL: UNIVERSAL ACCESS")
+    st.title("🤖 RAJ-AI SENTINEL: LOGIN")
     with st.columns([1,2,1])[1]:
         u = st.text_input("Agent ID")
         p = st.text_input("Vault Key", type="password")
@@ -44,42 +23,56 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied.")
 else:
-    # --- 4. UNIVERSAL DASHBOARD ---
+    # --- 3. DASHBOARD CORE ---
     st.title("🌐 UNIVERSAL COMMAND CENTER")
     
     if not user_key:
-        st.error("Bhai, pehle Sidebar mein apni API Key dalo, tabhi Agent kaam karega!")
+        st.warning("👈 Sidebar mein apni Gemini API Key dalo pehle!")
     else:
+        genai.configure(api_key=user_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
         file = st.file_uploader("Upload Resume (PDF)", type=['pdf'])
         
         if file:
-            with st.status("Agentic Analysis in Progress...") as status:
-                # Text Extraction Logic
+            # Step 1: Text Extraction
+            with st.spinner("Agent scanning document..."):
                 reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
                 text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+            
+            if text:
+                st.success("Document Scanned Successfully!")
                 
-                if text:
-                    status.update(label="Scanning Complete ✅", state="complete")
+                # Step 2: AI Intelligence Analysis
+                # Humne display ko simplify kiya hai taaki stuck na ho
+                st.markdown("### 🧠 Agentic Intelligence Report")
+                with st.chat_message("assistant"):
+                    report_placeholder = st.empty()
+                    report_placeholder.info("AI is thinking... (Please wait 5-10 seconds)")
                     
-                    st.markdown("<div class='card'>", unsafe_allow_html=True)
-                    st.subheader("🧐 AI Intelligence Report")
-                    
-                    # Colab Prompt Logic
-                    prompt = f"Tu ek Autonomous Career Agent hai. Is resume ko analyze kar aur ATS score, 2 galtiyan, aur 10 interview questions de: {text[:3000]}"
                     try:
+                        # Full-Fledge Prompt like Colab
+                        prompt = f"Analyze this resume: {text[:3000]}. Give ATS Score (0-100), 2 major mistakes, and 10 interview questions in Hinglish."
                         response = model.generate_content(prompt)
-                        st.write(response.text)
+                        
+                        # Displaying final report
+                        report_placeholder.markdown(response.text)
+                        
+                        # Step 3: Action Buttons
+                        st.divider()
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button("🚀 Search Jobs"):
+                                job_res = model.generate_content(f"Give LinkedIn links for: {text[:500]}")
+                                st.write(job_res.text)
+                        with c2:
+                            if st.button("📧 Write Email"):
+                                email_res = model.generate_content(f"Write a job email for this resume.")
+                                st.code(email_res.text)
+                                
                     except Exception as e:
-                        st.error(f"AI Error: {e}")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                    
-                    # Automation Buttons
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("🚀 Job Search"):
-                            st.write(model.generate_content(f"LinkedIn links for: {text[:500]}").text)
-                    with c2:
-                        if st.button("📧 Email Draft"):
-                            st.code(model.generate_content(f"Draft application email for this resume").text)
+                        report_placeholder.error(f"AI Connection Error: {e}")
+            else:
+                st.error("Bhai, is PDF mein text nahi mila. Scanned image hai kya?")
 
-st.caption("Universal Agent v13.0 | BYOK Edition | 2026")
+st.caption("Universal Agent v14.0 | BYOK | 2026 Edition")
