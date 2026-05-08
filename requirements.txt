@@ -1,8 +1,3 @@
 streamlit
 google-generativeai
 PyPDF2
-pandas
-openpyxl
-python-docx
-Pillow
-st-google-auth
