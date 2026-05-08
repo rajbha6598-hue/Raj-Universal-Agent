@@ -9,7 +9,7 @@ from PIL import Image
 # 1. API Config
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 # 2. Acid Green Neon UI
 st.set_page_config(page_title="Agentic Master 2026", layout="wide")
