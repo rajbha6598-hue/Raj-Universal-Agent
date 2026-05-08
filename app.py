@@ -1,86 +1,43 @@
 import streamlit as st
 import google.generativeai as genai
 import PyPDF2
+import pandas as pd
+from docx import Document
 import io
-import os
+from PIL import Image
 
-# 1. API Config (Streamlit Cloud ke Secrets se uthayega)
-try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
-except Exception as e:
-    st.error("🚨 API Key nahi mili! Settings > Secrets mein GEMINI_API_KEY daalein.")
-    st.stop()
+# ... (API Config aur UI wahi rahega) ...
 
-# 2. Sundar Neon UI Setup
-st.set_page_config(page_title="Raj-AI Sentinel", layout="wide")
-st.markdown("""
-    <style>
-    .stApp { background-color: #000; color: #deff9a; }
-    .card { 
-        background: #111; 
-        padding: 20px; 
-        border-radius: 15px; 
-        border: 1px solid #333; 
-        margin-bottom: 20px;
-        color: #fff;
-    }
-    .stButton>button { 
-        background: #deff9a !important; 
-        color: #000 !important; 
-        font-weight: bold; 
-        width: 100%; 
-        border-radius: 50px; 
-        border: none;
-        height: 50px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# 3. Main Dashboard Content
-st.title("🤝 Raj-AI: Universal Job Agent")
-st.write("Dost, apna Resume upload karo, AI baaki kaam kar dega.")
-
-# Sidebar status (Jaise Colab mein tha)
-st.sidebar.success("🟢 System OK: Gemini 2.5 Active")
-st.sidebar.info("Aapka AI Agent taiyar hai.")
-
-file = st.file_uploader("Upload Resume (PDF)", type=['pdf'])
+# File uploader mein types badal diye
+file = st.file_uploader("Upload Resume (PDF, Image, Excel, Word)", type=['pdf', 'jpg', 'png', 'xlsx', 'docx'])
 
 if file:
-    # PDF Reading logic (Fixed Indentation)
-    try:
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
-        text = ""
-        for page in pdf_reader.pages:
-            content = page.extract_text()
-            if content:
-                text += content
-        
-        if text.strip() == "":
-            st.error("❌ Is PDF se text nahi nikal pa raha. Shayad ye scan ki hui photo hai?")
-        else:
-            st.success("✅ Resume successfully load ho gaya!")
-            
-            if st.button("Analyze & Find Jobs"):
-                with st.spinner("AI dimaag laga raha hai..."):
-                    # Colab wala powerful prompt
-                    prompt = f"""
-                    Tu ek Senior HR Manager hai. Is resume ko analyze kar:
-                    {text[:3000]}
-                    
-                    Mujhe Hinglish mein bata:
-                    1. Is bande ki TOP 3 SKILLS kya hain?
-                    2. 2 matching Job Roles aur unhe dhoondhne ke direct search links.
-                    3. Resume ko behtar banane ke liye 1 pro tip.
-                    """
-                    response = model.generate_content(prompt)
-                    st.markdown(f"<div class='card'>{response.text}</div>", unsafe_allow_html=True)
-                    st.balloons()
-                    
-    except Exception as e:
-        st.error(f"⚠️ Error reading PDF: {e}")
+    text = ""
+    file_type = file.name.split('.')[-1].lower()
 
-st.divider()
-st.caption("🤖 Sentinel Status: All systems secure & encrypted.")
+    # 1. Agar PDF hai
+    if file_type == 'pdf':
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+        text = "".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
+
+    # 2. Agar Image hai (OCR logic)
+    elif file_type in ['jpg', 'png', 'jpeg']:
+        img = Image.open(file)
+        # Gemini Vision ko use karke image se text nikalna
+        response = model.generate_content(["Extract all text from this resume image:", img])
+        text = response.text
+
+    # 3. Agar Excel hai
+    elif file_type == 'xlsx':
+        df = pd.read_excel(file)
+        text = df.to_string()
+
+    # 4. Agar Word file hai
+    elif file_type == 'docx':
+        doc = Document(io.BytesIO(file.read()))
+        text = "\n".join([para.text for para in doc.paragraphs])
+
+    # Final Result
+    if text.strip():
+        st.success(f"✅ {file_type.upper()} file load ho gayi!")
+        # Baaki ka Analyze button wala logic yahan aayega...
