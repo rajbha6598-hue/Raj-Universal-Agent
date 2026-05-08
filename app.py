@@ -3,6 +3,7 @@ import google.generativeai as genai
 import PyPDF2
 import io
 import time
+from PIL import Image
 
 # --- 1. CONFIG & STYLE ---
 st.set_page_config(page_title="Universal Agent 2026", layout="wide")
@@ -23,56 +24,56 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied.")
 else:
-    # --- 3. DASHBOARD CORE ---
     st.title("🌐 UNIVERSAL COMMAND CENTER")
-    
     if not user_key:
-        st.warning("👈 Sidebar mein apni Gemini API Key dalo pehle!")
+        st.warning("👈 Sidebar mein Gemini API Key dalo!")
     else:
         genai.configure(api_key=user_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        file = st.file_uploader("Upload Resume (PDF)", type=['pdf'])
+        file = st.file_uploader("Upload Resume (PDF/Image)", type=['pdf', 'jpg', 'png'])
         
         if file:
-            # Step 1: Text Extraction
-            with st.spinner("Agent scanning document..."):
-                reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
-                text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+            text = ""
+            with st.status("Agent Scanning Document (Deep Vision)..."):
+                file_bytes = file.read()
+                if file.type == "application/pdf":
+                    # Pehle text nikalne ki koshish
+                    reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+                    text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                    
+                    # AGENTIC FIX: Agar text blank hai toh AI Vision use karo
+                    if not text.strip():
+                        st.write("🔍 Scanned PDF detected. Triggering AI Vision...")
+                        res = model.generate_content(["Is resume ko scan karke pura text nikalo:", {"mime_type": "application/pdf", "data": file_bytes}])
+                        text = res.text
+                else:
+                    # Agar image upload ki hai
+                    img = Image.open(io.BytesIO(file_bytes))
+                    res = model.generate_content(["Analyze this resume image:", img])
+                    text = res.text
             
             if text:
                 st.success("Document Scanned Successfully!")
-                
-                # Step 2: AI Intelligence Analysis
-                # Humne display ko simplify kiya hai taaki stuck na ho
                 st.markdown("### 🧠 Agentic Intelligence Report")
-                with st.chat_message("assistant"):
-                    report_placeholder = st.empty()
-                    report_placeholder.info("AI is thinking... (Please wait 5-10 seconds)")
+                
+                # --- PHASE 2: COLAB CORE LOGIC ---
+                prompt = f"Analyze this resume: {text[:3000]}. Give ATS Score (0-100), 2 major mistakes, and 10 interview questions in Hinglish."
+                try:
+                    response = model.generate_content(prompt)
+                    st.markdown(f"<div class='card'>{response.text}</div>", unsafe_allow_html=True)
                     
-                    try:
-                        # Full-Fledge Prompt like Colab
-                        prompt = f"Analyze this resume: {text[:3000]}. Give ATS Score (0-100), 2 major mistakes, and 10 interview questions in Hinglish."
-                        response = model.generate_content(prompt)
-                        
-                        # Displaying final report
-                        report_placeholder.markdown(response.text)
-                        
-                        # Step 3: Action Buttons
-                        st.divider()
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            if st.button("🚀 Search Jobs"):
-                                job_res = model.generate_content(f"Give LinkedIn links for: {text[:500]}")
-                                st.write(job_res.text)
-                        with c2:
-                            if st.button("📧 Write Email"):
-                                email_res = model.generate_content(f"Write a job email for this resume.")
-                                st.code(email_res.text)
-                                
-                    except Exception as e:
-                        report_placeholder.error(f"AI Connection Error: {e}")
-            else:
-                st.error("Bhai, is PDF mein text nahi mila. Scanned image hai kya?")
+                    # Action Tools
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("🚀 Search Jobs"):
+                            jobs = model.generate_content(f"Give LinkedIn links for: {text[:500]}")
+                            st.write(jobs.text)
+                    with c2:
+                        if st.button("📧 Write Email"):
+                            email = model.generate_content(f"Write a job email for this profile.")
+                            st.code(email.text)
+                except Exception as e:
+                    st.error(f"AI Error: {e}")
 
-st.caption("Universal Agent v14.0 | BYOK | 2026 Edition")
+st.caption("Universal Agent v15.0 | Deep Vision Enabled | 2026 Edition")
