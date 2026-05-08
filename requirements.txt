@@ -1,8 +1,6 @@
 streamlit
 google-generativeai
 PyPDF2
-bcrypt
-pillow
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
+pandas
+openpyxl
+Pillow
